@@ -50,8 +50,55 @@
 // 
 
 #import "CoreWLANController.h"
+#import <CoreWLAN/CoreWLANTypes.h>
 #import <CoreWLAN/CoreWLAN.h>
 #import <SecurityInterface/SFAuthorizationView.h>
+
+typedef enum {
+    kCWSecurityModeOpen = 0,
+    kCWSecurityModeWEP,
+    kCWSecurityModeWPA_PSK,
+    kCWSecurityModeWPA2_PSK,
+    kCWSecurityModeWPA_Enterprise,
+    kCWSecurityModeWPA2_Enterprise,
+    kCWSecurityModeWPS,
+    kCWSecurityModeDynamicWEP
+} CWSecurityMode;
+
+@interface CW8021XProfile : NSObject <NSCopying, NSCoding> {
+    
+    NSString* _userDefinedName;
+    NSString* _ssid;
+    NSString* _username;
+    NSString* _password;
+    char _alwaysPromptForPassword;
+    
+}
+
+@property (copy) NSString * userDefinedName;                  //@synthesize userDefinedName=_userDefinedName - In the implementation block
+@property (copy) NSString * ssid;                             //@synthesize ssid=_ssid - In the implementation block
+@property (copy) NSString * username;                         //@synthesize username=_username - In the implementation block
+@property (copy) NSString * password;                         //@synthesize password=_password - In the implementation block
+@property (assign) char alwaysPromptForPassword;              //@synthesize alwaysPromptForPassword=_alwaysPromptForPassword - In the implementation block
++(id)profile;
++(id)allUser8021XProfiles;
+-(void)setSsid:(NSString *)arg1 ;
+-(id)init;
+-(void)dealloc;
+-(id)initWithCoder:(id)arg1 ;
+-(void)encodeWithCoder:(id)arg1 ;
+-(id)copyWithZone:(NSZone*)arg1 ;
+-(void)setPassword:(NSString *)arg1 ;
+-(NSString *)ssid;
+-(NSString *)password;
+-(NSString *)username;
+-(void)setUsername:(NSString *)arg1 ;
+-(char)isEqualToProfile:(id)arg1 ;
+-(NSString *)userDefinedName;
+-(char)alwaysPromptForPassword;
+-(void)setUserDefinedName:(NSString *)arg1 ;
+-(void)setAlwaysPromptForPassword:(char)arg1 ;
+@end
 
 @implementation CoreWLANController
 
@@ -76,18 +123,21 @@
 	NSString *phyModeStr = nil;
 	switch( [phyMode intValue] )
 	{
-		case kCWPHYMode11A:
-			phyModeStr = [NSString stringWithString:@"802.11a"];
+		case 1:
+			phyModeStr = @"802.11a";
 			break;
-		case kCWPHYMode11B:
-			phyModeStr = [NSString stringWithString:@"802.11b"];
+		case 2:
+			phyModeStr = @"802.11b";
 			break;
-		case kCWPHYMode11G:
-			phyModeStr = [NSString stringWithString:@"802.11g"];
+		case 3:
+			phyModeStr = @"802.11g";
 			break;
-		case kCWPHYMode11N:
-			phyModeStr = [NSString stringWithString:@"802.11n"];
+		case 4:
+			phyModeStr = @"802.11n";
 			break;
+        case 5:
+            phyModeStr = @"802.11ac";
+            break;
 	}
 	return phyModeStr;
 }
@@ -98,28 +148,28 @@
 	switch( [securityMode intValue] )
 	{
 		case kCWSecurityModeOpen:
-			securityModeStr = [NSString stringWithString:@"Open"];
+			securityModeStr = @"Open";
 			break;
 		case kCWSecurityModeWEP:
-			securityModeStr = [NSString stringWithString:@"WEP"];
+			securityModeStr = @"WEP";
 			break;
 		case kCWSecurityModeWPA_PSK:
-			securityModeStr = [NSString stringWithString:@"WPA Personal"];
+			securityModeStr = @"WPA Personal";
 			break;
 		case kCWSecurityModeWPA_Enterprise:
-			securityModeStr = [NSString stringWithString:@"WPA Enterprise"];
+			securityModeStr = @"WPA Enterprise";
 			break;
 		case kCWSecurityModeWPA2_PSK:
-			securityModeStr = [NSString stringWithString:@"WPA2 Personal"];
+			securityModeStr = @"WPA2 Personal";
 			break;
 		case kCWSecurityModeWPA2_Enterprise:
-			securityModeStr = [NSString stringWithString:@"WPA2 Enterprise"];
+			securityModeStr = @"WPA2 Enterprise";
 			break;
 		case kCWSecurityModeWPS:
-			securityModeStr = [NSString stringWithString:@"WiFi Protected Setup"];
+			securityModeStr = @"WiFi Protected Setup";
 			break;
 		case kCWSecurityModeDynamicWEP:
-			securityModeStr = [NSString stringWithString:@"802.1X WEP"];
+			securityModeStr = @"802.1X WEP";
 			break;
 	}
 	return securityModeStr;
@@ -143,22 +193,29 @@
 		return kCWSecurityModeOpen; 
 }
 
+enum {
+    kCWOpModeStation = 0,
+    kCWOpModeIBSS,
+    kCWOpModeHostAP,
+    kCWOpModeMonitorMode,
+};
+
 - (NSString*)stringForOpMode:(NSNumber*)opMode
 {
 	NSString *opModeStr = nil;
 	switch( [opMode intValue] )
 	{
 		case kCWOpModeIBSS:
-			opModeStr = [NSString stringWithString:@"IBSS"];
+			opModeStr = @"IBSS";
 			break;
 		case kCWOpModeStation:
-			opModeStr = [NSString stringWithString:@"Infrastructure"];
+			opModeStr = @"Infrastructure";
 			break;
 		case kCWOpModeHostAP:
-			opModeStr = [NSString stringWithString:@"Host Access Point"];
+			opModeStr = @"Host Access Point";
 			break;
 		case kCWOpModeMonitorMode:
-			opModeStr = [NSString stringWithString:@"Monitor Mode"];
+			opModeStr = @"Monitor Mode";
 			break;
 	}
 	return opModeStr;
@@ -169,21 +226,21 @@
 	NSNumber *num = nil;
 	NSString *str = nil;
 	
-	BOOL powerState = self.currentInterface.power;	
+	BOOL powerState = [self.currentInterface powerOn];
 	[powerStateControl setSelectedSegment:(powerState ? 0 : 1)];
 	
-	if( [self.currentInterface.interfaceState intValue] == kCWInterfaceStateRunning )
+	if( [self.currentInterface interfaceMode] != kCWInterfaceModeNone )
 		[disconnectButton setEnabled:YES];
 	else
 		[disconnectButton setEnabled:NO];
 	
-	num = [self.currentInterface opMode];
+	num = self.currentInterface.interfaceMode;
 	[opModeField setStringValue:((num && powerState) ? [self stringForOpMode:num] : @"")];
-	
-	num = [self.currentInterface securityMode];
+
+	num = self.currentInterface.security;
 	[securityModeField setStringValue:((num && powerState) ? [self stringForSecurityMode:num] : @"")];
 	
-	num = [self.currentInterface phyMode];
+	num = self.currentInterface.interfaceMode;
 	[phyModeField setStringValue:((num && powerState) ? [self stringForPHYMode:num] : @"")];
 	
 	str = [self.currentInterface ssid];
@@ -192,22 +249,23 @@
 	str = [self.currentInterface bssid];
 	[bssidField setStringValue:((str && powerState) ? str : @"")];
 	
-	num = [self.currentInterface txRate]; 
+	num = [NSNumber numberWithDouble:self.currentInterface.transmitRate];
 	[txRateField setStringValue:((num && powerState) ? [NSString stringWithFormat:@"%@ Mbps",[num stringValue]] : @"")];
 	
-	num = [self.currentInterface rssi];
+    num = self.currentInterface.rssiValue;
 	[rssiField setStringValue:((num && powerState) ? [NSString stringWithFormat:@"%@ dBm",[num stringValue]] : @"")];
 	
-	num = [self.currentInterface noise];
+	num = self.currentInterface.noiseMeasurement;
 	[noiseField setStringValue:((num && powerState) ? [NSString stringWithFormat:@"%@ dBm",[num stringValue]] : @"")];
 	
-	num = [self.currentInterface txPower];
+	num = self.currentInterface.transmitPower;
 	[txPowerField setStringValue:((num && powerState) ? [NSString stringWithFormat:@"%@ mW",[num stringValue]] : @"")];
 	
 	str = [self.currentInterface countryCode];
 	[countryCodeField setStringValue:((str && powerState) ? str : @"")];
-	
-	NSArray *supportedChannelsArray = [self.currentInterface supportedChannels];
+
+    NSSet *supChSet = self.currentInterface.supportedWLANChannels;
+    NSArray *supportedChannelsArray = [supChSet allObjects];
 	NSMutableString *supportedChannelsString = [NSMutableString stringWithCapacity:0];
 	[channelPopup removeAllItems];
 	for( id eachChannel in supportedChannelsArray )
@@ -222,34 +280,35 @@
 	}
 	[supportedChannelsField setStringValue:supportedChannelsString];
 	
-	NSArray *supportedPHYModesArray = [self.currentInterface supportedPHYModes];
 	NSMutableString *supportedPHYModesString = [NSMutableString stringWithString:@"802.11"];
-	for( id eachPHYMode in supportedPHYModesArray )
-	{
-		switch( [eachPHYMode intValue] )
-		{
-			case kCWPHYMode11A:
-				[supportedPHYModesString appendString:@"a/"];
-				break;
-			case kCWPHYMode11B:
-				[supportedPHYModesString appendString:@"b/"];
-				break;
-			case kCWPHYMode11G:
-				[supportedPHYModesString appendString:@"g/"];
-				break;
-			case kCWPHYMode11N:
-				[supportedPHYModesString appendString:@"n"];
-				break;
-		}
-	}
+    switch( [self.currentInterface activePHYMode] )
+    {
+        case 0:
+            break;
+            
+        case 1:
+            [supportedPHYModesString appendString:@"a"];
+            break;
+        case 2:
+            [supportedPHYModesString appendString:@"b"];
+            break;
+        case 3:
+            [supportedPHYModesString appendString:@"g"];
+            break;
+        case 4:
+            [supportedPHYModesString appendString:@"n"];
+            break;
+        case 5:
+            [supportedPHYModesString appendString:@"ac"];
+    }
 	if( [supportedPHYModesString hasSuffix:@"/"] )
 		[supportedPHYModesString deleteCharactersInRange:NSMakeRange([supportedPHYModesString length] - 1, 1)];
 	if( [supportedPHYModesString hasSuffix:@"802.11"] )
-		supportedPHYModesString = [NSString stringWithString:@"None"];
+		[supportedPHYModesString setString:@"None"];
 	[supportedPHYModesField setStringValue:supportedPHYModesString];
 	
-	[channelPopup selectItemWithTitle:[[self.currentInterface channel] stringValue]];
-	if( ![self.currentInterface power] || [[self.currentInterface interfaceState] intValue] == kCWInterfaceStateRunning )
+	[channelPopup selectItemWithTitle:[[self.currentInterface wlanChannel] channelNumber]];
+	if( ([self.currentInterface powerOn] == FALSE) || [self.currentInterface interfaceMode] == kCWInterfaceModeNone )
 		[channelPopup setEnabled:NO];
 	else
 		[channelPopup setEnabled:YES];
@@ -258,9 +317,8 @@
 - (void)updateScanTab
 {
 	NSError *err = nil;
-	NSDictionary *params = [NSDictionary dictionaryWithObject:[NSNumber numberWithBool:([mergeScanResultsCheckbox state] == NSOnState)] forKey:kCWScanKeyMerge];
-	
-	self.scanResults = [NSMutableArray arrayWithArray:[self.currentInterface scanForNetworksWithParameters:params error:&err]];
+
+	self.scanResults = [NSMutableArray arrayWithArray:[[self.currentInterface scanForNetworksWithName:nil error:&err] allObjects]];
 	if( err )
 		[[NSAlert alertWithError:err] runModal];
 	else
@@ -293,10 +351,17 @@
 #pragma mark -
 #pragma mark NSNibAwaking Protocol
 - (void) awakeFromNib
-{	
+{
+    int netProfCur = 0;
+    NSArray *netProfiles = [[CWWiFiClient interfaceNames] arrayByAddingObject:nil];
 	// populate interfaces popup with all supported interfaces
 	[supportedInterfacesPopup removeAllItems];
-	[supportedInterfacesPopup addItemsWithTitles:[CWInterface supportedInterfaces]];
+
+    while (([netProfiles count] > netProfCur) && ([netProfiles objectAtIndex:netProfCur] != nil))
+    {
+        [supportedInterfacesPopup addItemsWithTitles:[netProfiles objectAtIndex:netProfCur]];
+        ++netProfCur;
+    }
 	
 	// setup scan results table
 	[scanResultsTable setDataSource:self];
@@ -315,12 +380,12 @@
 	[ibssSpinner setHidden:YES];
 	
 	// register for notifcations
-	[[NSNotificationCenter defaultCenter] addObserver:self selector:@selector(handleNotification::) name:kCWModeDidChangeNotification object:nil];
-	[[NSNotificationCenter defaultCenter] addObserver:self selector:@selector(handleNotification:) name:kCWSSIDDidChangeNotification object:nil];
-	[[NSNotificationCenter defaultCenter] addObserver:self selector:@selector(handleNotification:) name:kCWBSSIDDidChangeNotification object:nil];
-	[[NSNotificationCenter defaultCenter] addObserver:self selector:@selector(handleNotification:) name:kCWCountryCodeDidChangeNotification object:nil];
-	[[NSNotificationCenter defaultCenter] addObserver:self selector:@selector(handleNotification:) name:kCWLinkDidChangeNotification object:nil];
-	[[NSNotificationCenter defaultCenter] addObserver:self selector:@selector(handleNotification:) name:kCWPowerDidChangeNotification object:nil];
+	[[NSNotificationCenter defaultCenter] addObserver:self selector:@selector(handleNotification::) name:CWModeDidChangeNotification object:nil];
+	[[NSNotificationCenter defaultCenter] addObserver:self selector:@selector(handleNotification:) name:CWSSIDDidChangeNotification object:nil];
+	[[NSNotificationCenter defaultCenter] addObserver:self selector:@selector(handleNotification:) name:CWBSSIDDidChangeNotification object:nil];
+	[[NSNotificationCenter defaultCenter] addObserver:self selector:@selector(handleNotification:) name:CWCountryCodeDidChangeNotification object:nil];
+	[[NSNotificationCenter defaultCenter] addObserver:self selector:@selector(handleNotification:) name:CWLinkDidChangeNotification object:nil];
+	[[NSNotificationCenter defaultCenter] addObserver:self selector:@selector(handleNotification:) name:CWPowerDidChangeNotification object:nil];
 }
 
 #pragma mark -
@@ -369,7 +434,7 @@
 - (IBAction)changeChannel:(id)sender
 {
 	NSError *err = nil;
-	BOOL result = [self.currentInterface setChannel:[[NSNumber numberWithInt:[[[channelPopup selectedItem] title] intValue]] unsignedIntegerValue] error:&err];
+	BOOL result = [self.currentInterface setWLANChannel:[[NSNumber numberWithInt:[[[channelPopup selectedItem] title] intValue]] unsignedIntegerValue] error:&err];
 	if( !result )
 		[[NSAlert alertWithError:err] runModal];
 	[self updateInterfaceInfoTab];
@@ -418,7 +483,7 @@
 
 - (IBAction)change8021XProfile:(id)sender
 {
-	CW8021XProfile *tmp = [[CW8021XProfile allUser8021XProfiles] objectAtIndex:[joinUser8021XProfilePopupButton indexOfSelectedItem] -1];
+    CW8021XProfile *tmp = [[CW8021XProfile allUser8021XProfiles] objectAtIndex:[joinUser8021XProfilePopupButton indexOfSelectedItem] -1];
 	if( tmp )
 	{
 		if( [[[joinUser8021XProfilePopupButton selectedItem] title] isEqualToString:@"Default"] )
@@ -437,6 +502,9 @@
 		}
 	}
 }
+
+NSString * const kCWAssocKey8021XProfileDef=@"kCWAssocKey8021XProfile";
+NSString * const kCWAssocKeyPassphraseDef=@"kCWAssocKeyPassphrase";
 
 - (IBAction)joinOKButtonPressed:(id)sender
 {
@@ -465,11 +533,11 @@
 	{
 		NSMutableDictionary *params = [NSMutableDictionary dictionaryWithCapacity:0];
 		if( user8021XProfile )
-			[params setValue:user8021XProfile forKey:kCWAssocKey8021XProfile];
+			[params setValue:user8021XProfile forKey:kCWAssocKey8021XProfileDef];
 		else
-			[params setValue:([[joinPassphraseField stringValue] length] ? [joinPassphraseField stringValue] : nil) forKey:kCWAssocKeyPassphrase];
+			[params setValue:([[joinPassphraseField stringValue] length] ? [joinPassphraseField stringValue] : nil) forKey:kCWAssocKeyPassphraseDef];
 		NSError *err = nil;
-		BOOL result = [self.currentInterface associateToNetwork:self.selectedNetwork parameters:[NSDictionary dictionaryWithDictionary:params] error:&err];
+		BOOL result = [self.currentInterface associateToNetwork:self.selectedNetwork password:[user8021XProfile password] error:&err];
 		
 		[joinSpinner stopAnimation:self];
 		[joinSpinner setHidden:YES];
@@ -501,9 +569,8 @@
 		[joinSecurityPopupButton setEnabled:NO];
 		[self changeSecurityMode:nil];
 		
-		CWWirelessProfile *wp = self.selectedNetwork.wirelessProfile;
-		CW8021XProfile *xp = wp.user8021XProfile;
-		switch( [self.selectedNetwork.securityMode intValue] )
+		CWNetworkProfile *wpa = [[[[self.currentInterface configuration] networkProfiles] array] objectAtIndex:-1];
+		switch( [wpa security] )
 		{
 			case kCWSecurityModeWPA_PSK:
 			case kCWSecurityModeWPA2_PSK:
